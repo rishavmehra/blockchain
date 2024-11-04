@@ -14,10 +14,6 @@ func (bc *Blockchain) AddBlock(data string) {
 	bc.Blocks = append(bc.Blocks, newBlock)
 }
 
-func NewGensisBlock() *block.Block {
-	return block.NewBlock("Gensis Block", []byte{0})
-}
-
 func NewBlockchain() *Blockchain {
-	return &Blockchain{[]*block.Block{NewGensisBlock()}}
+	return &Blockchain{[]*block.Block{block.NewGenesisBlock()}}
 }
