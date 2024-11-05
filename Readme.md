@@ -1,7 +1,7 @@
 ## Blockchain
 
-- [ ] Setup Block and Blockchain
-- [ ] Proof of Work
+- [X] Setup Block and Blockchain
+- [X] Proof of Work
 - [ ] UTXO
 - [ ] Address
 - [ ] Transaction
