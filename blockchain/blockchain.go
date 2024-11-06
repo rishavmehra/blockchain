@@ -11,15 +11,19 @@ const dbfile = "blockchain.db"
 const blocksBucket = "blocks"
 
 type Blockchain struct {
-	// Blocks []*block.Block
-	tip []byte
-	db  *bolt.DB
+	Tip []byte
+	DB  *bolt.DB
+}
+
+type BlockchainIterator struct {
+	currentHash []byte
+	db          *bolt.DB
 }
 
 func (bc *Blockchain) AddBlock(data string) {
 	var lastHash []byte
 
-	err := bc.db.View(func(tx *bolt.Tx) error {
+	err := bc.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
 		lastHash = b.Get([]byte("l"))
 
@@ -31,7 +35,7 @@ func (bc *Blockchain) AddBlock(data string) {
 
 	newBlock := block.NewBlock(data, lastHash)
 
-	err = bc.db.Update(func(tx *bolt.Tx) error {
+	err = bc.DB.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
 		err := b.Put(newBlock.Hash, newBlock.Serialization())
 		if err != nil {
@@ -41,7 +45,7 @@ func (bc *Blockchain) AddBlock(data string) {
 		if err != nil {
 			log.Panic(err)
 		}
-		bc.tip = newBlock.Hash
+		bc.Tip = newBlock.Hash
 
 		return nil
 	})
@@ -51,8 +55,7 @@ func (bc *Blockchain) AddBlock(data string) {
 }
 
 func NewBlockchain() *Blockchain {
-	// return &Blockchain{[]*block.Block{block.NewGenesisBlock()}}
-	var tip []byte
+	var Tip []byte
 	db, err := bolt.Open(dbfile, 0600, nil)
 	if err != nil {
 		log.Panic(err)
@@ -75,16 +78,41 @@ func NewBlockchain() *Blockchain {
 			if err != nil {
 				log.Panic(err)
 			}
-			tip = genesis.Hash
+			Tip = genesis.Hash
 		} else {
-			tip = b.Get([]byte("l"))
+			Tip = b.Get([]byte("l"))
 		}
 		return nil
 	})
 	if err != nil {
 		log.Panic(err)
 	}
-	bc := Blockchain{tip, db}
+	bc := Blockchain{Tip, db}
 
 	return &bc
+}
+
+func (bc *Blockchain) Iterator() *BlockchainIterator {
+	bci := &BlockchainIterator{bc.Tip, bc.DB}
+
+	return bci
+}
+
+func (i *BlockchainIterator) Next() *block.Block {
+	var blk *block.Block
+
+	err := i.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blocksBucket))
+		encodedBlock := b.Get(i.currentHash)
+		blk = block.DeserializeBlock(encodedBlock)
+		return nil
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	i.currentHash = blk.PrevBlockHash
+	return blk
+
 }
