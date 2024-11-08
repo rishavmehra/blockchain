@@ -1,14 +1,18 @@
 package blockchain
 
 import (
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/boltdb/bolt"
 	"github.com/rishavmehra/blockchain/block"
+	"github.com/rishavmehra/blockchain/transaction"
 )
 
 const dbfile = "blockchain.db"
 const blocksBucket = "blocks"
+const genesisCoinbaseData = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
 
 type Blockchain struct {
 	Tip []byte
@@ -18,6 +22,13 @@ type Blockchain struct {
 type BlockchainIterator struct {
 	currentHash []byte
 	db          *bolt.DB
+}
+
+func dbExists() bool {
+	if _, err := os.Stat(dbfile); os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
 
 func (bc *Blockchain) AddBlock(data string) {
@@ -90,6 +101,49 @@ func NewBlockchain() *Blockchain {
 	bc := Blockchain{Tip, db}
 
 	return &bc
+}
+
+func CreateBlockchain(address string) *Blockchain {
+	if dbExists() {
+		fmt.Println("Blockchain already exits")
+		os.Exit(1)
+	}
+
+	var Tip []byte
+	db, err := bolt.Open(dbfile, 0600, nil)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		cbtx := transaction.NewCoinbaseTx(address, genesisCoinbaseData)
+		genesis := block.NewGenesisBlock(cbtx)
+
+		b, err := tx.CreateBucket([]byte(blocksBucket))
+		if err != nil {
+			log.Panic(err)
+		}
+
+		err = b.Put(genesis.Hash, genesis.Serialization())
+		if err != nil {
+			log.Panic(err)
+		}
+
+		err = b.Put([]byte("l"), genesis.Hash)
+		if err != nil {
+			log.Panic(err)
+		}
+		Tip = genesis.Hash
+		return nil
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	bc := Blockchain{Tip, db}
+	return &bc
+
 }
 
 func (bc *Blockchain) Iterator() *BlockchainIterator {
