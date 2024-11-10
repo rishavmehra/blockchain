@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/rishavmehra/blockchain/blockchain"
 	"github.com/rishavmehra/blockchain/cli"
 )
 
@@ -21,10 +20,10 @@ func main() {
 	// 	fmt.Println()
 	// }
 
-	bc := blockchain.NewBlockchain()
-	defer bc.DB.Close()
+	// bc := blockchain.NewBlockchain()
+	// defer bc.DB.Close()
 
-	cli := &cli.CLI{bc}
+	cli := cli.CLI{}
 	cli.Run()
 
 }

@@ -32,7 +32,7 @@ func dbExists() bool {
 	return true
 }
 
-func (bc *Blockchain) AddBlock(data string) {
+func (bc *Blockchain) MineBlock(transactions []*transaction.Transaction) {
 	var lastHash []byte
 
 	err := bc.DB.View(func(tx *bolt.Tx) error {
@@ -45,7 +45,7 @@ func (bc *Blockchain) AddBlock(data string) {
 		log.Panic(err)
 	}
 
-	newBlock := block.NewBlock(data, lastHash)
+	newBlock := block.NewBlock(transactions, lastHash)
 
 	err = bc.DB.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
@@ -66,7 +66,7 @@ func (bc *Blockchain) AddBlock(data string) {
 	}
 }
 
-func (bc *Blockchain) FindUnSpendTransaction(address string) []transaction.Transaction {
+func (bc *Blockchain) FindUnSpendTransactions(address string) []transaction.Transaction {
 	var unspendTXs []transaction.Transaction
 	spendTXOs := make(map[string][]int)
 	//interate over all the blocks in the blockchain
@@ -112,10 +112,12 @@ func (bc *Blockchain) FindUnSpendTransaction(address string) []transaction.Trans
 	return unspendTXs
 }
 
+// / method returns the unspent transaction outputs for a given address
 func (bc *Blockchain) FindUTXO(address string) []transaction.TxOutput {
 	var UTXOs []transaction.TxOutput
-	unspendTransactions := bc.FindUnSpendTransaction(address)
+	unspendTransactions := bc.FindUnSpendTransactions(address)
 
+	// iterate over all the transactions in the block
 	for _, tx := range unspendTransactions {
 		for _, out := range tx.Vout {
 			if out.CanBeUnlockedWith(address) {
@@ -126,7 +128,69 @@ func (bc *Blockchain) FindUTXO(address string) []transaction.TxOutput {
 	return UTXOs
 }
 
-func NewBlockchain() *Blockchain {
+func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *transaction.Transaction {
+	var inputs []transaction.TxInput
+	var outputs []transaction.TxOutput
+
+	acc, validOutputs := bc.FindSpendableOutputs(from, amount)
+
+	if acc < amount {
+		log.Panic("Bhai tare pass etna bitcoin he nahi h")
+	}
+
+	for txid, outs := range validOutputs {
+		txID, err := hex.DecodeString(txid)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		for _, out := range outs {
+			input := transaction.TxInput{txID, out, from}
+			inputs = append(inputs, input)
+		}
+	}
+
+	outputs = append(outputs, transaction.TxOutput{amount, to})
+
+	if acc > amount {
+		outputs = append(outputs, transaction.TxOutput{acc - amount, from})
+	}
+
+	tx := transaction.Transaction{nil, inputs, outputs}
+	tx.SetID()
+	return &tx
+}
+
+func (bc *Blockchain) FindSpendableOutputs(address string, amount int) (int, map[string][]int) {
+	unspendOutputs := make(map[string][]int)
+	unspendTXs := bc.FindUnSpendTransactions(address)
+	allTxTOgether := 0
+
+Work:
+	for _, tx := range unspendTXs {
+		txID := hex.EncodeToString(tx.ID)
+		for outIDx, out := range tx.Vout {
+			if out.CanBeUnlockedWith(address) && allTxTOgether < amount {
+				allTxTOgether = allTxTOgether + out.Value
+				unspendOutputs[txID] = append(unspendOutputs[txID], outIDx)
+
+				if allTxTOgether >= amount {
+					break Work
+				}
+			}
+		}
+	}
+
+	return allTxTOgether, unspendOutputs
+
+}
+
+func NewBlockchain(address string) *Blockchain {
+	if dbExists() == false {
+		fmt.Println("No exiting blockchain found, create one first. ")
+		os.Exit(1)
+	}
+
 	var Tip []byte
 	db, err := bolt.Open(dbfile, 0600, nil)
 	if err != nil {
@@ -135,25 +199,7 @@ func NewBlockchain() *Blockchain {
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
-
-		if b == nil {
-			genesis := block.NewGenesisBlock()
-			b, err := tx.CreateBucket([]byte(blocksBucket))
-			if err != nil {
-				log.Panic(err)
-			}
-			err = b.Put(genesis.Hash, genesis.Serialization())
-			if err != nil {
-				log.Panic(err)
-			}
-			err = b.Put([]byte("l"), genesis.Hash)
-			if err != nil {
-				log.Panic(err)
-			}
-			Tip = genesis.Hash
-		} else {
-			Tip = b.Get([]byte("l"))
-		}
+		Tip = b.Get([]byte("l"))
 		return nil
 	})
 	if err != nil {
@@ -222,12 +268,9 @@ func (i *BlockchainIterator) Next() *block.Block {
 		blk = block.DeserializeBlock(encodedBlock)
 		return nil
 	})
-
 	if err != nil {
 		log.Panic(err)
 	}
-
 	i.currentHash = blk.PrevBlockHash
 	return blk
-
 }
