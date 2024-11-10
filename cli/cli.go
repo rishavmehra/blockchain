@@ -56,11 +56,9 @@ func (cli *CLI) printChain() {
 	bc := blockchain.NewBlockchain("")
 	defer bc.DB.Close()
 
-	bci := cli.BC.Iterator()
+	bci := bc.Iterator()
 	for {
-		fmt.Println("hre is the er")
 		blk := bci.Next()
-		fmt.Println("Here is the eror")
 
 		fmt.Printf("Prev. Hash %x\n", blk.PrevBlockHash)
 		fmt.Printf("Hash %x\n", blk.Hash)
