@@ -112,6 +112,20 @@ func (bc *Blockchain) FindUnSpendTransaction(address string) []transaction.Trans
 	return unspendTXs
 }
 
+func (bc *Blockchain) FindUTXO(address string) []transaction.TxOutput {
+	var UTXOs []transaction.TxOutput
+	unspendTransactions := bc.FindUnSpendTransaction(address)
+
+	for _, tx := range unspendTransactions {
+		for _, out := range tx.Vout {
+			if out.CanBeUnlockedWith(address) {
+				UTXOs = append(UTXOs, out)
+			}
+		}
+	}
+	return UTXOs
+}
+
 func NewBlockchain() *Blockchain {
 	var Tip []byte
 	db, err := bolt.Open(dbfile, 0600, nil)
