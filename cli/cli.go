@@ -38,8 +38,8 @@ func (cli *CLI) getBalance(address string) {
 
 func (cli *CLI) printUsage() {
 	fmt.Println("Usage")
-	fmt.Println("getbalance -adddress ADDRESS - Get balance of ADDRESS")
-	fmt.Println("createblockchain -adddress ADDRESS - create blockchain and send gensis block reward to Address")
+	fmt.Println("getbalance -address ADDRESS - Get balance of ADDRESS")
+	fmt.Println("createblockchain -address ADDRESS - create blockchain and send gensis block reward to Address")
 	fmt.Println("printchain - Print all the blocks of the blockchain")
 	fmt.Println("send -from FROM -to TO -amount AMOUNT - send AMOUNT of coins from FROM address to TO")
 }
@@ -103,7 +103,7 @@ func (cli *CLI) Run() {
 			log.Panic(err)
 		}
 
-	case "Createblockchain":
+	case "createblockchain":
 		err := CreateBlockchainCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
