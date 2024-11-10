@@ -3,6 +3,11 @@
 - [X] Setup Block and Blockchain
 - [X] Proof of Work
 - [X] Persistence using key-valueDB
-- [ ] UTXO
+- [ ] UTXO 
 - [ ] Address
 - [ ] Transaction
+
+---
+### Learning resources
+ - [UTXO](https://www.clementinemoney.com/utxo/)
+    https://bitcoin.stackexchange.com/questions/75165/what-is-bitcoin-locking-and-unlocking-script

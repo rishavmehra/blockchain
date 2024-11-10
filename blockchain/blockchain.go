@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
@@ -63,6 +64,52 @@ func (bc *Blockchain) AddBlock(data string) {
 	if err != nil {
 		log.Panic(err)
 	}
+}
+
+func (bc *Blockchain) FindUnSpendTransaction(address string) []transaction.Transaction {
+	var unspendTXs []transaction.Transaction
+	spendTXOs := make(map[string][]int)
+	//interate over all the blocks in the blockchain
+	bci := bc.Iterator()
+
+	for {
+		// get the next block in the blockchain
+		block := bci.Next()
+		// iterate over all the transactions in the block
+		for _, tx := range block.Transactions {
+			txID := hex.EncodeToString(tx.ID)
+
+		Outputs: // iterate over all the outputs in the transaction
+			for outIdx, out := range tx.Vout {
+				// check if the output is already spent
+				if spendTXOs[txID] != nil {
+					for _, spendOut := range spendTXOs[txID] {
+						if spendOut == outIdx {
+							continue Outputs
+						}
+					}
+				}
+				// check if the output can be unlocked with the address
+				if out.CanBeUnlockedWith(address) {
+					unspendTXs = append(unspendTXs, *tx)
+				}
+			}
+			// if the transaction is not a coinbase transaction
+			if !tx.IsCoinbase() {
+				for _, in := range tx.Vin {
+					if in.CanUnlockOutputWith(address) {
+						inTxID := hex.EncodeToString(in.Txid)
+						spendTXOs[inTxID] = append(spendTXOs[inTxID], in.Vout)
+					}
+				}
+			}
+		}
+		// if the block is the genesis block
+		if len(block.PrevBlockHash) == 0 {
+			break
+		}
+	}
+	return unspendTXs
 }
 
 func NewBlockchain() *Blockchain {
