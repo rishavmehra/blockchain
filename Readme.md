@@ -4,10 +4,15 @@
 - [X] Proof of Work
 - [X] Persistence using key-valueDB
 - [X] UTXO 
-- [ ] Address
-- [ ] Transaction
+- [X] Address/Wallet
+- [ ] Transaction 
 
 ---
 ### Learning resources
  - [UTXO](https://www.clementinemoney.com/utxo/)
     https://bitcoin.stackexchange.com/questions/75165/what-is-bitcoin-locking-and-unlocking-script
+
+
+---
+#### Improvments
+ - need to migrate ripemd imeplementation
