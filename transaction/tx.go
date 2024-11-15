@@ -15,10 +15,6 @@ import (
 
 const subsidy = 10
 
-type BlockchainProvider interface {
-	FindSpendableOutputs(address string, amount int) (int, map[string][]int)
-}
-
 type Transaction struct {
 	ID   []byte
 	Vin  []TxInput
@@ -173,13 +169,3 @@ func (tx *Transaction) SetID() {
 	hash = sha256.Sum256(encoded.Bytes())
 	tx.ID = hash[:]
 }
-
-// // method checks if a transaction input can unlock a previous output
-// func (in *TxInput) CanUnlockOutputWith(unlockingData string) bool {
-// 	return in.ScriptSig == unlockingData
-// }
-
-// // / method checks if a transaction output can be unlocked with a specific unlocking script
-// func (out *TxOutput) CanBeUnlockedWith(unlockingData string) bool {
-// 	return out.ScriptPubKey == unlockingData
-// }
