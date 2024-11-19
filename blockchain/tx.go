@@ -1,4 +1,4 @@
-package transaction
+package blockchain
 
 import (
 	"bytes"
@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+
+	"github.com/rishavmehra/blockchain/wallet"
+	"github.com/rishavmehra/blockchain/wallets"
 )
 
 const subsidy = 10
@@ -168,4 +171,45 @@ func (tx *Transaction) SetID() {
 
 	hash = sha256.Sum256(encoded.Bytes())
 	tx.ID = hash[:]
+}
+
+func NewUTXOTransaction(from, to string, amount int, UTXOSet *UTXOSet) *Transaction {
+	var inputs []TxInput
+	var outputs []TxOutput
+
+	wallets, err := wallets.NewWallets()
+	if err != nil {
+		log.Panic(err)
+	}
+	Wallet := wallets.GetWallet(from)
+	pubKeyHash := wallet.HashPubKey(Wallet.PublicKey)
+	acc, validOutputs := UTXOSet.FindSpendableOutputs(pubKeyHash, amount)
+
+	if acc < amount {
+		log.Panic("Bhai tare pass etna bitcoin he nahi h")
+	}
+
+	for txid, outs := range validOutputs {
+		txID, err := hex.DecodeString(txid)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		for _, out := range outs {
+			input := TxInput{txID, out, nil, Wallet.PublicKey}
+			inputs = append(inputs, input)
+		}
+	}
+
+	outputs = append(outputs, *NewTxOutput(amount, to))
+
+	if acc > amount {
+		outputs = append(outputs, *NewTxOutput(acc-amount, from))
+	}
+
+	tx := Transaction{nil, inputs, outputs}
+	tx.ID = tx.Hash()
+	UTXOSet.Blockchain.SignTransaction(&tx, Wallet.PrivateKey)
+
+	return &tx
 }

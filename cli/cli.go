@@ -8,9 +8,7 @@ import (
 	"strconv"
 
 	base58 "github.com/rishavmehra/blockchain/Base58"
-	"github.com/rishavmehra/blockchain/block"
 	"github.com/rishavmehra/blockchain/blockchain"
-	"github.com/rishavmehra/blockchain/transaction"
 	"github.com/rishavmehra/blockchain/wallet"
 	"github.com/rishavmehra/blockchain/wallets"
 )
@@ -24,7 +22,10 @@ func (cli *CLI) createblockchain(address string) {
 		log.Panic("error: address is not valid")
 	}
 	bc := blockchain.CreateBlockchain(address)
-	bc.DB.Close()
+	defer bc.DB.Close()
+	UTXOSet := blockchain.UTXOSet{bc}
+	UTXOSet.Reindex()
+
 	fmt.Println("Done!")
 }
 
@@ -41,13 +42,14 @@ func (cli *CLI) getBalance(address string) {
 		log.Panic("error: address is not valid")
 	}
 
-	bc := blockchain.NewBlockchain(address)
+	bc := blockchain.NewBlockchain()
+	UTXOSet := blockchain.UTXOSet{bc}
 	defer bc.DB.Close()
 
 	balance := 0
 	pubKeyHash := base58.Decode([]byte(address))
 	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
-	UTXOs := bc.FindUTXO(pubKeyHash)
+	UTXOs := UTXOSet.FindUTXO(pubKeyHash)
 
 	for _, out := range UTXOs {
 		balance += out.Value
@@ -76,17 +78,23 @@ func (cli *CLI) send(from, to string, amount int) {
 		log.Panic("error: receiver address is not valid")
 	}
 
-	bc := blockchain.NewBlockchain(from)
+	bc := blockchain.NewBlockchain()
+	UTXOSet := blockchain.UTXOSet{bc}
 	defer bc.DB.Close()
 
-	tx := blockchain.NewUTXOTransaction(from, to, amount, bc)
-	bc.MineBlock([]*transaction.Transaction{tx})
+	tx := blockchain.NewUTXOTransaction(from, to, amount, &UTXOSet)
+	cbTx := blockchain.NewCoinbaseTx(from, "")
+	txs := []*blockchain.Transaction{cbTx, tx}
+
+	newBlock := bc.MineBlock(txs)
+	UTXOSet.Update(newBlock)
+
 	fmt.Println("Success!")
 }
 
 func (cli *CLI) printChain() {
 
-	bc := blockchain.NewBlockchain("")
+	bc := blockchain.NewBlockchain()
 	defer bc.DB.Close()
 
 	bci := bc.Iterator()
@@ -96,7 +104,7 @@ func (cli *CLI) printChain() {
 		fmt.Printf("========= Block %x =========\n", blk.Hash)
 		fmt.Printf("Prev. Hash %x\n", blk.PrevBlockHash)
 		fmt.Printf("Hash %x\n", blk.Hash)
-		pow := block.NewProofOfWork(blk)
+		pow := blockchain.NewProofOfWork(blk)
 		fmt.Printf("PoW %s\n", strconv.FormatBool(pow.Validate()))
 		for _, tx := range blk.Transactions {
 			fmt.Println(tx)

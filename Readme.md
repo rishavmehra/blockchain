@@ -6,6 +6,7 @@
 - [X] UTXO 
 - [X] Address/Wallet
 - [ ] Transaction 
+    - utxo set(chainstate)
 
 ---
 ### Learning resources
