@@ -5,8 +5,8 @@
 - [X] Persistence using key-valueDB
 - [X] UTXO 
 - [X] Address/Wallet
-- [ ] Transaction 
-    - utxo set(chainstate)
+- [X] Transaction 
+    - [X]utxo set(chainstate)
 
 ---
 ### Learning resources
