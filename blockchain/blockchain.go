@@ -12,7 +12,7 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-const dbfile = "blockchain.db"
+const dbfile = "blockchain_%s.db"
 const blocksBucket = "blocks"
 const genesisCoinbaseData = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
 
@@ -21,12 +21,7 @@ type Blockchain struct {
 	DB  *bolt.DB
 }
 
-type BlockchainIterator struct {
-	currentHash []byte
-	db          *bolt.DB
-}
-
-func dbExists() bool {
+func dbExists(dbfile string) bool {
 	if _, err := os.Stat(dbfile); os.IsNotExist(err) {
 		return false
 	}
@@ -112,8 +107,9 @@ func (bc *Blockchain) FindUTXO() map[string]TxOutputs {
 	return UTXO
 }
 
-func NewBlockchain() *Blockchain {
-	if dbExists() == false {
+func NewBlockchain(nodeID string) *Blockchain {
+	dbfile := fmt.Sprintf(dbfile, nodeID)
+	if dbExists(dbfile) == false {
 		fmt.Println("No exiting blockchain found, create one first. ")
 		os.Exit(1)
 	}
@@ -230,18 +226,22 @@ func (bc *Blockchain) Iterator() *BlockchainIterator {
 	return bci
 }
 
-func (i *BlockchainIterator) Next() *Block {
-	var blk *Block
+// gives latest block height
+func (bc *Blockchain) GetBestHeight() int {
+	var lastBlock Block
 
-	err := i.db.View(func(tx *bolt.Tx) error {
+	err := bc.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(blocksBucket))
-		encodedBlock := b.Get(i.currentHash)
-		blk = DeserializeBlock(encodedBlock)
+		lastHash := b.Get([]byte("l"))
+		blockData := b.Get(lastHash)
+		lastBlock = *DeserializeBlock(blockData)
+
 		return nil
 	})
 	if err != nil {
 		log.Panic(err)
 	}
-	i.currentHash = blk.PrevBlockHash
-	return blk
+
+	return lastBlock.Height
+
 }

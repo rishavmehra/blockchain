@@ -14,6 +14,7 @@ type Block struct {
 	PrevBlockHash []byte
 	Hash          []byte
 	Nonce         int
+	Height        int
 }
 
 func (b *Block) Serialization() []byte {
